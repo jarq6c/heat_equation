@@ -62,8 +62,8 @@ class UniformPlateModel:
         Temperature of left boundary constant heat source in Kelvin.
     write_interval: float, default 0.1
         Interval in seconds at which to save intermediate states to self.history.
-    history: dict[np.float64, npt.NDArray[np.float64]]
-        Mapping from an elapsed model time in seconds to a saved model state.
+    history: dict[str, npt.NDArray[np.float64]]
+        Mapping from a unique key indicating elapsed model time to a saved model state.
     state: npt.NDArray[np.float64]
         Current state of plate temperature field.
     current_time: float
@@ -123,7 +123,7 @@ class UniformPlateModel:
         self._time_steps = int(self.duration / self.temporal_resolution)
 
         # Validate state history parameters
-        self.history: dict[float, npt.NDArray[np.float64]] = {}
+        self.history: dict[str, npt.NDArray[np.float64]] = {}
         if self.write_interval is not None:
             if self.write_interval < self.temporal_resolution:
                 raise NonPhysicalValueError(
@@ -244,7 +244,8 @@ class UniformPlateModel:
         """If write_interval set, add current model state to history."""
         # Save final state
         if self.write_interval is not None:
-            self.history[self.current_time] = self.state.copy()
+            key = f"Model time: {self.current_time:.2f} s"
+            self.history[key] = self.state.copy()
 
     @property
     def state(self: Self) -> npt.NDArray[np.float64]:
