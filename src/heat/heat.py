@@ -60,10 +60,18 @@ class UniformPlateModel:
         Initial uniform temperature of plate in Kelvin.
     left_boundary_temperature: float, default 400.0
         Temperature of left boundary constant heat source in Kelvin.
+    write_interval: float, default 0.1
+        Interval in seconds at which to save intermediate states to self.history.
+    history: dict[np.float64, npt.NDArray[np.float64]]
+        Mapping from an elapsed model time in seconds to a saved model state.
+    state: npt.NDArray[np.float64]
+        Current state of plate temperature field.
+    current_time: float
+        Current elapsed model time in seconds.
     
     Raises
     ------
-    NonPhysicalValueError
+    NonPhysicalValueError, NumericalInstabilityError, UnknownMaterialError
     """
     width: float = 0.15
     height: float = 0.15
@@ -73,6 +81,7 @@ class UniformPlateModel:
     material: Material = Material.COPPER
     initial_temperature: float = 300.0
     left_boundary_temperature: float = 400.0
+    write_interval: float | None = 0.1
 
     def __post_init__(self: Self) -> None:
         # Validate spatial dimensions
@@ -108,6 +117,18 @@ class UniformPlateModel:
                 f"temporal_resolution {self.temporal_resolution}"
                 f" must be <= duration {self.duration}"
             )
+
+        # Validate state history parameters
+        self.history: dict[float, npt.NDArray[np.float64]] = {}
+        if self.write_interval is not None:
+            if self.write_interval < self.temporal_resolution:
+                raise NonPhysicalValueError(
+                    f"write_interval {self.write_interval} must be >="
+                    f" temporal_resolution {self.temporal_resolution}"
+                )
+
+            # Convert write_interval from seconds to time steps
+            self._write_steps = int(self.write_interval / self.temporal_resolution)
 
         # Validate material
         if self.material not in THERMAL_DIFFUSIVITY:
@@ -166,6 +187,7 @@ class UniformPlateModel:
         self._state[0, :] = self.left_boundary_temperature
 
         # Compute number of time steps and initialize current time step
+        self._current_time: float = 0.0
         self._time_steps = int(self.duration / self.temporal_resolution)
 
     def update_state(self: Self) -> None:
@@ -194,9 +216,32 @@ class UniformPlateModel:
 
     def run(self: Self) -> None:
         """Run the simulation for full duration."""
-        for _ in range(self._time_steps):
+        # Save initial state
+        self.save_state()
+
+        # March in time
+        for step in range(1, self._time_steps+1):
+            # Advance elapsed time
+            self._current_time += self.temporal_resolution
+
+            # Update model state
             self.update_state()
+
+            # Enforce boundary conditions
             self.enforce_boundary_conditions()
+
+            # Save state
+            if step % self._write_steps == 0:
+                self.save_state()
+
+        # Save final state
+        self.save_state()
+
+    def save_state(self: Self) -> None:
+        """If write_interval set, add current model state to history."""
+        # Save final state
+        if self.write_interval is not None:
+            self.history[self.current_time] = self.state.copy()
 
     @property
     def state(self: Self) -> npt.NDArray[np.float64]:
@@ -204,3 +249,12 @@ class UniformPlateModel:
         # Return inner cells without boundary condition buffer
         #   Transpose for easier plotting
         return self._state[1:-1, 1:-1].T
+
+    @property
+    def current_time(self: Self) -> float:
+        """Returns current elapsed model time, accounting for temporal precision."""
+        # Determine precision of temporal resolution
+        decimals = int(np.round(np.log10(self.temporal_resolution)*-1))
+
+        # Drop extra digits from machine precision
+        return np.round(self._current_time, decimals)
