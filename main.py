@@ -5,9 +5,11 @@ uniform material.
 from src.heat.model import UniformPlateModel
 from src.heat.visualize import FieldPlotter
 
+# Instantiate and run simulation
 model = UniformPlateModel(duration=10.0, write_interval=0.5)
 model.run()
 
+# Render state history as animate GIF
 plotter = FieldPlotter(
     data_shape=model.state.shape,
     value_label="Temperature (K)",

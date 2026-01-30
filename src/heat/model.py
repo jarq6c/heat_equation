@@ -1,6 +1,6 @@
 """
 This module includes methods to simulate the conduction of heat across
-an idealized plate made of uniform material.
+an idealized thin plate made of uniform material.
 
 Classes
 =======
@@ -36,11 +36,10 @@ THERMAL_DIFFUSIVITY: dict[Material, float] = {
 class UniformPlateModel:
     """
     Dataclass that stores model parameters and states for a finite difference
-    simulation of the heat equation. Model parameters assume a plate made of
+    simulation of the heat equation. Model parameters assume a thin plate made of
     uniform material with a constant heat source along the left edge. The right,
     top, and bottom boundaries of the plate are perfect insulators. The
-    simulation assumes the thermal diffusivity of the material is constant
-    with temperature.
+    simulation assumes the thermal diffusivity of the material is constant.
     
     Attributes
     ----------
@@ -55,7 +54,7 @@ class UniformPlateModel:
     temporal_resolution: float, default 0.01
         Model time step in seconds.
     material: Material, default Material.COPPER
-        Assumed plate material used to determine thermal diffusivity.
+        Plate material used to determine thermal diffusivity.
     initial_temperature: float, default 300.0
         Initial uniform temperature of plate in Kelvin.
     left_boundary_temperature: float, default 400.0
@@ -137,13 +136,6 @@ class UniformPlateModel:
             # Set _write_steps to a large value
             self._write_steps = self._time_steps * 2
 
-        # Validate material
-        if self.material not in THERMAL_DIFFUSIVITY:
-            raise UnknownMaterialError(
-                f"unknown material '{self.material}'"
-                f", must be one of {list(THERMAL_DIFFUSIVITY.keys())}"
-            )
-
         # Validate temperatures
         if self.initial_temperature < 0.0:
             raise NonPhysicalValueError(
@@ -166,7 +158,14 @@ class UniformPlateModel:
             )
 
         # Set thermal diffusivity
-        self._thermal_diffusivity = THERMAL_DIFFUSIVITY[self.material]
+        self._thermal_diffusivity = THERMAL_DIFFUSIVITY.get(self.material)
+
+        # Validate material
+        if self._thermal_diffusivity is None:
+            raise UnknownMaterialError(
+                f"unknown material '{self.material}'"
+                f", must be one of {list(THERMAL_DIFFUSIVITY.keys())}"
+            )
 
         # Compute the Fourier coefficient (AKA the diffusion number)
         self._diffusion = (
@@ -175,7 +174,7 @@ class UniformPlateModel:
         )
 
         # Warn for instability
-        #   For a finite difference numerical scheme with a uniform grid, the
+        #   For a 2D finite difference numerical scheme with a uniform grid, the
         #   Fourier coefficient must be <= 0.25 for numerical stability
         if self._diffusion > 0.25:
             raise NumericalInstabilityError(
@@ -190,7 +189,7 @@ class UniformPlateModel:
         # Initialize internal state with a buffer to enforce boundary conditions
         self._state = np.full((self._columns+2, self._rows+2), self.initial_temperature)
 
-        # Set left boundary condition
+        # Initialize left boundary condition
         self._state[0, :] = self.left_boundary_temperature
 
     def update_state(self: Self) -> None:
@@ -242,7 +241,7 @@ class UniformPlateModel:
 
     def save_state(self: Self) -> None:
         """If write_interval set, add current model state to history."""
-        # Save final state
+        # Save model state
         if self.write_interval is not None:
             self.history[self.current_time] = self.state.copy()
 
@@ -250,12 +249,12 @@ class UniformPlateModel:
     def state(self: Self) -> npt.NDArray[np.float64]:
         """Current state of plate temperature field."""
         # Return inner cells without boundary condition buffer
-        #   Transpose for easier plotting
+        #   Transpose so origin is at bottom left
         return self._state[1:-1, 1:-1].T
 
     @property
     def current_time(self: Self) -> float:
-        """Returns current elapsed model time, accounting for temporal precision."""
+        """Current elapsed model time, accounting for temporal precision."""
         # Determine precision of temporal resolution
         decimals = int(np.round(np.log10(self.temporal_resolution)*-1))
 

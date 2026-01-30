@@ -3,6 +3,7 @@ This module includes methods to visualize model state.
 
 Classes
 =======
+Frame
 FieldPlotter
 """
 from typing import Self
@@ -17,12 +18,41 @@ from matplotlib.animation import FuncAnimation
 
 @dataclass
 class Frame:
-    """Dataclass that stores frame data."""
+    """
+    Dataclass that stores frame data for animations.
+
+    Attributes
+    ----------
+    data: npt.NDArray[np.float64]
+        Model data.
+    time: np.float64
+        Model elapsed time that corresponds to data.
+    """
     data: npt.NDArray[np.float64]
     time: np.float64
 
 class FieldPlotter:
-    """A dataclass for storing plot parameters."""
+    """
+    Configure and render plots of field data.
+
+    Parameters
+    ----------
+    value_label: str
+    data_shape: tuple[float, float]
+    domain_extent: tuple[float, float, float, float]
+    value_range: tuple[float, float]
+    figure_size: tuple[float, float]
+    x_label: str
+    y_label: str
+    time_units: str, default "s"
+
+    Attributes
+    ----------
+    figure
+    axes
+    image
+    time_units: str, default "s"
+    """
     def __init__(
             self: Self,
             value_label: str,
@@ -59,15 +89,34 @@ class FieldPlotter:
             self: Self,
             data: npt.NDArray[np.float64]
             ) -> AxesImage:
-        """Update figure data."""
+        """
+        Replace figure values with new field.
+
+        Parameters
+        ----------
+        data: npt.NDArray[np.float64]
+            Replacement data.
+        
+        Returns
+        -------
+        _ : AxesImage
+            New image.
+        """
         self.image.set_array(data)
         return self.image
 
     def update_title(
             self: Self,
             figure_title: str
-            ) -> AxesImage:
-        """Update figure title."""
+            ) -> None:
+        """
+        Replace figure title.
+
+        Parameters
+        ----------
+        figure_title: str
+            Replacement string for title.
+        """
         self.axes.set_title(figure_title)
 
     def to_png(
@@ -75,7 +124,16 @@ class FieldPlotter:
             data: npt.NDArray[np.float64],
             output: Path
         ) -> None:
-        """Save current figure to PNG."""
+        """
+        Save data to PNG file.
+
+        Parameters
+        ----------
+        data: npt.NDArray[np.float64]
+            Data to plot.
+        output: Path
+            Output path for PNG file.
+        """
         # Update data
         self.update_data(data=data)
 
@@ -84,11 +142,23 @@ class FieldPlotter:
 
     def to_gif(
             self: Self,
-            frames: dict[str, npt.NDArray[np.float64]],
+            frames: dict[np.float64, npt.NDArray[np.float64]],
             output: Path,
             frames_per_second: int = 30
         ) -> None:
-        """Save sequence of frames to animated GIF."""
+        """
+        Save sequence of data to animated GIF.
+
+        Parameters
+        ----------
+        frames: dict[np.float64, npt.NDArray[np.float64]]
+            Mapping from elapsed model time to model state. States are plotted
+            in order.
+        output: Path
+            Output path for GIF file.
+        frames_per_second: int, default 30
+            Frame rate of resulting GIF.
+        """
         # Simplify frames
         frame_list = [Frame(data=d, time=t) for t, d in frames.items()]
 
