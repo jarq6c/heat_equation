@@ -4,7 +4,7 @@ an idealized plate made of uniform material.
 
 Classes
 =======
-PlateModel
+UniformPlateModel
 """
 from dataclasses import dataclass
 from enum import StrEnum
@@ -12,6 +12,7 @@ from typing import Self
 import warnings
 
 import numpy as np
+import numpy.typing as npt
 
 class NonPhysicalValueError(Exception):
     """Exception raised for non-physical dimensions."""
@@ -147,7 +148,7 @@ class UniformPlateModel:
 
         # Warn for instability
         #   For a finite difference numerical scheme with a uniform grid, the
-        #   Fourier coefficient must be >= 0.25 for numerical stability
+        #   Fourier coefficient must be <= 0.25 for numerical stability
         if self._diffusion > 0.25:
             raise NumericalInstabilityError(
                 f"Diffusion number {self._diffusion:.3f} > 0.25"
@@ -155,8 +156,51 @@ class UniformPlateModel:
             )
 
         # Compute dimensions of plate in number of grid cells
-        nx = int(self.width / self.spatial_resolution) # horizontal cells
-        ny = int(self.height / self.spatial_resolution) # vertical cells
+        self._columns = int(self.width / self.spatial_resolution)
+        self._rows = int(self.height / self.spatial_resolution)
 
-        # Initialize state (columns, rows)
-        self._state = np.full((nx, ny), self.initial_temperature)
+        # Initialize internal state with a buffer to enforce boundary conditions
+        self._state = np.full((self._columns+2, self._rows+2), self.initial_temperature)
+
+        # Set left boundary condition
+        self._state[0, :] = self.left_boundary_temperature
+
+        # Compute number of time steps and initialize current time step
+        self._time_steps = int(self.duration / self.temporal_resolution)
+
+    def update_state(self: Self) -> None:
+        """Update the state for a single time step."""
+        # Update state
+        old_state = self._state.copy()
+        for i in range(1, self._columns+1):
+            for j in range(1, self._rows+1):
+                self._state[i, j] = (
+                    (self._diffusion * (
+                        old_state[i+1, j] - 2.0 * old_state[i, j] + old_state[i-1, j]
+                    )) +
+                    (self._diffusion * (
+                        old_state[i, j+1] - 2.0 * old_state[i, j] + old_state[i, j-1]
+                    )) +
+                    old_state[i, j]
+                )
+
+    def enforce_boundary_conditions(self: Self) -> None:
+        """Enforce simulation boundary conditions."""
+        # Enforce boundary conditions
+        self._state[:, -1] = self._state[:, -2] # Top
+        self._state[:, 0] = self._state[:, 1] # Bottom
+        self._state[-1, :] = self._state[-2, :] # Right
+        self._state[0, :] = self.left_boundary_temperature # Left
+
+    def run(self: Self) -> None:
+        """Run the simulation for full duration."""
+        for _ in range(self._time_steps):
+            self.update_state()
+            self.enforce_boundary_conditions()
+
+    @property
+    def state(self: Self) -> npt.NDArray[np.float64]:
+        """Current state of plate temperature field."""
+        # Return inner cells without boundary condition buffer
+        #   Transpose for easier plotting
+        return self._state[1:-1, 1:-1].T
