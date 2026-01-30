@@ -118,6 +118,10 @@ class UniformPlateModel:
                 f" must be <= duration {self.duration}"
             )
 
+        # Compute number of time steps and initialize current time step
+        self._current_time: float = 0.0
+        self._time_steps = int(self.duration / self.temporal_resolution)
+
         # Validate state history parameters
         self.history: dict[float, npt.NDArray[np.float64]] = {}
         if self.write_interval is not None:
@@ -129,6 +133,9 @@ class UniformPlateModel:
 
             # Convert write_interval from seconds to time steps
             self._write_steps = int(self.write_interval / self.temporal_resolution)
+        else:
+            # Set _write_steps to a large value
+            self._write_steps = self._time_steps * 2
 
         # Validate material
         if self.material not in THERMAL_DIFFUSIVITY:
@@ -185,10 +192,6 @@ class UniformPlateModel:
 
         # Set left boundary condition
         self._state[0, :] = self.left_boundary_temperature
-
-        # Compute number of time steps and initialize current time step
-        self._current_time: float = 0.0
-        self._time_steps = int(self.duration / self.temporal_resolution)
 
     def update_state(self: Self) -> None:
         """Update the state for a single time step."""
