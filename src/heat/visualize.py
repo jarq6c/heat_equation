@@ -19,7 +19,7 @@ from matplotlib.animation import FuncAnimation
 class Frame:
     """Dataclass that stores frame data."""
     data: npt.NDArray[np.float64]
-    title: str
+    time: np.float64
 
 class FieldPlotter:
     """A dataclass for storing plot parameters."""
@@ -90,11 +90,11 @@ class FieldPlotter:
         ) -> None:
         """Save sequence of frames to animated GIF."""
         # Simplify frames
-        frame_list = [Frame(data=d, title=t) for t, d in frames.items()]
+        frame_list = [Frame(data=d, time=t) for t, d in frames.items()]
 
         # Make frame update function
         def updater(frame: Frame) -> list[AxesImage]:
-            self.update_title(frame.title)
+            self.update_title(f"Model time: {frame.time:.2f}")
             return [self.update_data(frame.data)]
 
         # Generate animation
