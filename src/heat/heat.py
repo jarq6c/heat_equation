@@ -14,7 +14,13 @@ import warnings
 import numpy as np
 
 class NonPhysicalValueError(Exception):
-    """Error raise for non-physical dimensions."""
+    """Exception raised for non-physical dimensions."""
+
+class NumericalInstabilityError(Exception):
+    """Exception raised for numerical instability."""
+
+class UnknownMaterialError(Exception):
+    """Exception raised for unknown plate materials."""
 
 class Material(StrEnum):
     """StrEnum for different material types."""
@@ -102,9 +108,33 @@ class UniformPlateModel:
                 f" must be <= duration {self.duration}"
             )
 
+        # Validate material
+        if self.material not in THERMAL_DIFFUSIVITY:
+            raise UnknownMaterialError(
+                f"unknown material '{self.material}'"
+                f", must be one of {list(THERMAL_DIFFUSIVITY.keys())}"
+            )
+
+        # Validate temperatures
+        if self.initial_temperature < 0.0:
+            raise NonPhysicalValueError(
+                f"initial_temperature {self.initial_temperature} is not > 0"
+            )
+        if self.left_boundary_temperature < 0.0:
+            raise NonPhysicalValueError(
+                f"left_boundary_temperature {self.left_boundary_temperature} is not > 0"
+            )
+
         # Warn for 0 duration
         if self.duration == 0.0:
             warnings.warn("duration is 0", UserWarning)
+
+        # Warn for non-dynamic simulation
+        if self.initial_temperature == self.left_boundary_temperature:
+            warnings.warn(
+                f"initial_temperature {self.initial_temperature} "
+                f"and left_boundary_temperature {self.left_boundary_temperature} are equal"
+            )
 
         # Set thermal diffusivity
         self._thermal_diffusivity = THERMAL_DIFFUSIVITY[self.material]
@@ -119,7 +149,7 @@ class UniformPlateModel:
         #   For a finite difference numerical scheme with a uniform grid, the
         #   Fourier coefficient must be >= 0.25 for numerical stability
         if self._diffusion > 0.25:
-            raise NonPhysicalValueError(
+            raise NumericalInstabilityError(
                 f"Diffusion number {self._diffusion:.3f} > 0.25"
                 " simulation may be numerically unstable"
             )
