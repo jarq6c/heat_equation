@@ -14,7 +14,6 @@ plotter = FieldPlotter(
     domain_extent=(0, model.width, 0, model.height),
     value_range=(model.initial_temperature, model.left_boundary_temperature),
     figure_size=(6, 5),
-    figure_title=f"Simulation time: {model.current_time:.2f} s",
     x_label="Horizontal (m)",
     y_label="Vertical (m)"
 )

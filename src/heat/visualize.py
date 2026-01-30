@@ -30,9 +30,9 @@ class FieldPlotter:
             domain_extent: tuple[float, float, float, float],
             value_range: tuple[float, float],
             figure_size: tuple[float, float],
-            figure_title: str,
             x_label: str,
-            y_label: str
+            y_label: str,
+            time_units: str = "s"
         ) -> None:
         # Set up figure and axes
         self.figure, self.axes = plt.subplots(figsize=figure_size)
@@ -51,7 +51,7 @@ class FieldPlotter:
         self.figure.colorbar(self.image, ax=self.axes, label=value_label)
 
         # Set labels
-        self.axes.set_title(figure_title)
+        self.time_units = time_units
         self.axes.set_xlabel(x_label)
         self.axes.set_ylabel(y_label)
 
@@ -94,7 +94,7 @@ class FieldPlotter:
 
         # Make frame update function
         def updater(frame: Frame) -> list[AxesImage]:
-            self.update_title(f"Model time: {frame.time:.2f}")
+            self.update_title(f"Model time: {frame.time:.2f} ({self.time_units})")
             return [self.update_data(frame.data)]
 
         # Generate animation
