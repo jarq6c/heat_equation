@@ -61,6 +61,8 @@ class UniformPlateModel:
         Temperature of left boundary constant heat source in Kelvin.
     write_interval: float, default 0.1
         Interval in seconds at which to save intermediate states to self.history.
+    error_warning_threshold: float, default 1e-6
+        Warns if energy balance absolute error at end of simulation exceeds this threshold.
     history: dict[np.float64, npt.NDArray[np.float64]]
         Mapping from elapsed model time in seconds to a saved model state.
     state: npt.NDArray[np.float64]
@@ -81,6 +83,7 @@ class UniformPlateModel:
     initial_temperature: float = 300.0
     left_boundary_temperature: float = 400.0
     write_interval: float | None = 0.1
+    error_warning_threshold: float = 1e-6
 
     def __post_init__(self: Self) -> None:
         # Validate spatial dimensions
@@ -192,6 +195,9 @@ class UniformPlateModel:
         # Initialize left boundary condition
         self._state[0, :] = self.left_boundary_temperature
 
+        # Account for total flux across left boundary
+        self._total_flux = 0.0
+
     def update_state(self: Self) -> None:
         """Update the state for a single time step."""
         # Update state
@@ -207,6 +213,14 @@ class UniformPlateModel:
                     )) +
                     old_state[i, j]
                 )
+
+        # Update total flux into interior space
+        for j in range(1, self._rows+1):
+            self._total_flux += np.sum(
+                self._thermal_diffusivity *
+                (self.left_boundary_temperature - old_state[1, j]) /
+                self.spatial_resolution
+            ) * self.spatial_resolution * self.temporal_resolution
 
     def enforce_boundary_conditions(self: Self) -> None:
         """Enforce simulation boundary conditions."""
@@ -239,6 +253,14 @@ class UniformPlateModel:
         # Save final state
         self.save_state()
 
+        # Check energy balance
+        if self.balance_error > self.error_warning_threshold:
+            warnings.warn(
+                f"Energy balance error {self.balance_error} exceeds threshold "
+                f"{self.error_warning_threshold}",
+                UserWarning
+            )
+
     def save_state(self: Self) -> None:
         """If write_interval set, add current model state to history."""
         # Save model state
@@ -260,3 +282,11 @@ class UniformPlateModel:
 
         # Drop extra digits from machine precision
         return np.round(self._current_time, decimals)
+
+    @property
+    def balance_error(self: Self) -> float:
+        """Current energy balance in degrees K."""
+        cell_area = self.spatial_resolution ** 2.0
+        current_energy = np.sum(self.state) * cell_area
+        initial_energy = (self.initial_temperature * self._columns * self._rows) * cell_area
+        return np.abs(current_energy - (initial_energy + self._total_flux))
