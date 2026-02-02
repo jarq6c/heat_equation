@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.image import AxesImage
-from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 @dataclass
 class Frame:
@@ -70,7 +70,7 @@ class FieldPlotter:
         # Instantiate image
         self.image = self.axes.imshow(
             np.empty(shape=data_shape, dtype=np.float64),
-            cmap="hot",
+            cmap="inferno",
             origin="lower",
             extent=domain_extent,
             vmin=value_range[0],
@@ -140,14 +140,12 @@ class FieldPlotter:
         # Save figure
         self.figure.savefig(output)
 
-    def to_gif(
+    def to_animation(
             self: Self,
-            frames: list[tuple[np.float64, npt.NDArray[np.float64]]],
-            output: Path,
-            frames_per_second: int = 30
-        ) -> None:
+            frames: list[tuple[np.float64, npt.NDArray[np.float64]]]
+        ) -> FuncAnimation:
         """
-        Save sequence of data to animated GIF.
+        Create animation from sequence of fields.
 
         Parameters
         ----------
@@ -165,14 +163,38 @@ class FieldPlotter:
         # Make frame update function
         def updater(frame: Frame) -> list[AxesImage]:
             self.update_title(f"Model time: {frame.time:.2f} ({self.time_units})")
-            return [self.update_data(frame.data)]
+            return [self.update_data(frame.data), self.axes.title]
 
         # Generate animation
-        animation = FuncAnimation(self.figure, updater, frames=frame_list, blit=True)
+        return FuncAnimation(self.figure, updater, frames=frame_list, blit=True)
+
+    def to_gif(
+            self: Self,
+            frames: list[tuple[np.float64, npt.NDArray[np.float64]]],
+            output: Path,
+            frames_per_second: int = 30,
+            bitrate: int = 1800
+        ) -> None:
+        """
+        Save sequence of data to animated GIF.
+
+        Parameters
+        ----------
+        frames: list[tuple[np.float64, npt.NDArray[np.float64]]]
+            List of tuples where the first element is the elapsed model time and
+            the second element is the model state. States are plotted in order.
+        output: Path
+            Output path for GIF file.
+        frames_per_second: int, default 30
+            Frame rate of resulting GIF.
+        bitrate: int, default 1800
+            Bitrate of resulting GIF.
+        """
+        # Generate animation
+        animation = self.to_animation(frames=frames)
 
         # Save
         animation.save(
             output,
-            writer='pillow',
-            fps=frames_per_second
+            writer=PillowWriter(fps=frames_per_second, bitrate=bitrate)
         )
