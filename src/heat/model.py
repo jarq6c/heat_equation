@@ -63,8 +63,9 @@ class UniformPlateModel:
         Interval in seconds at which to save intermediate states to self.history.
     error_warning_threshold: float, default 1e-6
         Warns if energy balance absolute error at end of simulation exceeds this threshold.
-    history: dict[np.float64, npt.NDArray[np.float64]]
-        Mapping from elapsed model time in seconds to a saved model state.
+    history: list[tuple[np.float64, npt.NDArray[np.float64]]]
+        List of tuples where the first element is the elapsed model time and
+        the second element is the model state.
     state: npt.NDArray[np.float64]
         Current state of plate temperature field.
     current_time: float
@@ -125,7 +126,7 @@ class UniformPlateModel:
         self._time_steps = int(self.duration / self.temporal_resolution)
 
         # Validate state history parameters
-        self.history: dict[np.float64, npt.NDArray[np.float64]] = {}
+        self.history: list[tuple[np.float64, npt.NDArray[np.float64]]] = []
         if self.write_interval is not None:
             if self.write_interval < self.temporal_resolution:
                 raise NonPhysicalValueError(
@@ -265,7 +266,7 @@ class UniformPlateModel:
         """If write_interval set, add current model state to history."""
         # Save model state
         if self.write_interval is not None:
-            self.history[self.current_time] = self.state.copy()
+            self.history.append((self.current_time, self.state.copy()))
 
     @property
     def state(self: Self) -> npt.NDArray[np.float64]:

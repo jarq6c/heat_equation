@@ -142,7 +142,7 @@ class FieldPlotter:
 
     def to_gif(
             self: Self,
-            frames: dict[np.float64, npt.NDArray[np.float64]],
+            frames: list[tuple[np.float64, npt.NDArray[np.float64]]],
             output: Path,
             frames_per_second: int = 30
         ) -> None:
@@ -151,16 +151,16 @@ class FieldPlotter:
 
         Parameters
         ----------
-        frames: dict[np.float64, npt.NDArray[np.float64]]
-            Mapping from elapsed model time to model state. States are plotted
-            in order.
+        frames: list[tuple[np.float64, npt.NDArray[np.float64]]]
+            List of tuples where the first element is the elapsed model time and
+            the second element is the model state. States are plotted in order.
         output: Path
             Output path for GIF file.
         frames_per_second: int, default 30
             Frame rate of resulting GIF.
         """
         # Simplify frames
-        frame_list = [Frame(data=d, time=t) for t, d in frames.items()]
+        frame_list = [Frame(data=d, time=t) for t, d in frames]
 
         # Make frame update function
         def updater(frame: Frame) -> list[AxesImage]:
