@@ -2,6 +2,7 @@
 Build and run a model that simulates the conduction of heat across a
 uniform material.
 """
+from time import perf_counter
 from src.heat.model import UniformPlateModel
 from src.heat.visualize import FieldPlotter
 
@@ -9,12 +10,16 @@ from src.heat.visualize import FieldPlotter
 model = UniformPlateModel(
     duration=60.0,
     write_interval=2.0,
-    # spatial_resolution=0.0003,
-    # temporal_resolution=0.0001
+    spatial_resolution=0.00075,
+    temporal_resolution=0.001
     )
-model.run()
 
-print(f"Error: {model.balance_error}")
+start = perf_counter()
+model.run()
+duration = perf_counter() - start
+
+print(f"Compute time: {duration}")
+print(f"Energy balance error: {model.balance_error}")
 
 # Render state history as animate GIF
 plotter = FieldPlotter(

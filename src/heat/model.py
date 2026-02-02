@@ -203,25 +203,30 @@ class UniformPlateModel:
         """Update the state for a single time step."""
         # Update state
         old_state = self._state.copy()
-        for i in range(1, self._columns+1):
-            for j in range(1, self._rows+1):
-                self._state[i, j] = (
-                    (self._diffusion * (
-                        old_state[i+1, j] - 2.0 * old_state[i, j] + old_state[i-1, j]
-                    )) +
-                    (self._diffusion * (
-                        old_state[i, j+1] - 2.0 * old_state[i, j] + old_state[i, j-1]
-                    )) +
-                    old_state[i, j]
-                )
+        self._state[1:-1, 1:-1] = (
+            self._diffusion * (old_state[2:, 1:-1] - 2.0 * old_state[1:-1, 1:-1] + old_state[:-2, 1:-1]) +
+            self._diffusion * (old_state[1:-1, 2:] - 2.0 * old_state[1:-1, 1:-1] + old_state[1:-1, :-2]) +
+            old_state[1:-1, 1:-1]
+        )
+        # for i in range(1, self._columns+1):
+        #     for j in range(1, self._rows+1):
+        #         self._state[i, j] = (
+        #             (self._diffusion * (
+        #                 old_state[i+1, j] - 2.0 * old_state[i, j] + old_state[i-1, j]
+        #             )) +
+        #             (self._diffusion * (
+        #                 old_state[i, j+1] - 2.0 * old_state[i, j] + old_state[i, j-1]
+        #             )) +
+        #             old_state[i, j]
+        #         )
 
         # Update total flux into interior space
-        for j in range(1, self._rows+1):
-            self._total_flux += np.sum(
-                self._thermal_diffusivity *
-                (self.left_boundary_temperature - old_state[1, j]) /
-                self.spatial_resolution
-            ) * self.spatial_resolution * self.temporal_resolution
+        # for j in range(1, self._rows+1):
+        self._total_flux += np.sum(
+            self._thermal_diffusivity *
+            (self.left_boundary_temperature - old_state[1, 1:-1]) /
+            self.spatial_resolution
+        ) * self.spatial_resolution * self.temporal_resolution
 
     def enforce_boundary_conditions(self: Self) -> None:
         """Enforce simulation boundary conditions."""
