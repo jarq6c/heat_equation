@@ -1,7 +1,8 @@
 """Tests for the model module."""
 import pytest
 import numpy as np
-from src.heat.model import UniformPlateModel, Material
+from src.heat.model import (UniformPlateModel, Material, NonPhysicalValueError,
+    UnknownMaterialError, NumericalInstabilityError)
 
 @pytest.fixture
 def default_model() -> UniformPlateModel:
@@ -21,12 +22,52 @@ def default_model() -> UniformPlateModel:
 
 @pytest.fixture
 def single_step_model() -> UniformPlateModel:
-    """Returns a model with default parameters."""
+    """Returns a model that runs for a single time step."""
     return UniformPlateModel(duration=0.01, temporal_resolution=0.01)
 
 def test_defaults(default_model) -> None:
     """Test model defaults."""
     assert default_model == UniformPlateModel()
+
+@pytest.mark.parametrize(
+    "parameter_name, parameter_value",
+    [
+        ("width", -0.15),
+        ("height", -0.15),
+        ("spatial_resolution", -0.003),
+        ("spatial_resolution", 100.0),
+        ("temporal_resolution", -1.0),
+        ("duration", -1.0),
+        ("initial_temperature", -1.0),
+        ("left_boundary_temperature", -1.0),
+        ("write_interval", -1.0)
+    ]
+)
+def test_nonphysical_errors(parameter_name, parameter_value) -> None:
+    """Test that model correctly raises NonPhysicalValueError."""
+    with pytest.raises(NonPhysicalValueError):
+        UniformPlateModel(**{parameter_name: parameter_value})
+
+def test_unknown_material_error() -> None:
+    """Test that model correct raises for unknown materials."""
+    with pytest.raises(UnknownMaterialError):
+        UniformPlateModel(material="unobtainium")
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {
+            "duration": 60.0,
+            "write_interval": 2.0,
+            "spatial_resolution": 0.00075,
+            "temporal_resolution": 1.0
+        },
+    ]
+)
+def test_numerical_instability_errors(parameters) -> None:
+    """Test that model correctly raises NumericalInstabilityError."""
+    with pytest.raises(NumericalInstabilityError):
+        UniformPlateModel(**parameters)
 
 def test_model_step(single_step_model) -> None:
     """Test single model step."""
