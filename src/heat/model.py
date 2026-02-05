@@ -199,13 +199,18 @@ class UniformPlateModel:
         # Account for total flux across left boundary
         self._total_flux = 0.0
 
+        # Account for total truncation error
+        self._truncation_error = 0.0
+
     def update_state(self: Self) -> None:
         """Update the state for a single time step."""
         # Update state
         old_state = self._state.copy()
         self._state[1:-1, 1:-1] = (
-            self._diffusion * (old_state[2:, 1:-1] - 2.0 * old_state[1:-1, 1:-1] + old_state[:-2, 1:-1]) +
-            self._diffusion * (old_state[1:-1, 2:] - 2.0 * old_state[1:-1, 1:-1] + old_state[1:-1, :-2]) +
+            self._diffusion * (old_state[2:, 1:-1] - 2.0 * old_state[1:-1, 1:-1] +
+                                old_state[:-2, 1:-1]) +
+            self._diffusion * (old_state[1:-1, 2:] - 2.0 * old_state[1:-1, 1:-1] +
+                               old_state[1:-1, :-2]) +
             old_state[1:-1, 1:-1]
         )
         # for i in range(1, self._columns+1):
